@@ -1,0 +1,62 @@
+HomeWork3. 專案管理
+  資源:KNN，K means， rule-based
+1.需求:1.三關每次都會過 2.球初始座標任意 3.FPS>60(效能規格) 
+       4.將學習結果紀錄使結果優化
+2.分析:1.球的移動:input 2.板子控制:output 3.parameters:磚塊、板子球的初始位置
+       4.方法:經由input來判斷output得做的事
+3.設計:1.方塊圖(架構圖) 2.DataStructure/types 3.FSM
+
+                        _____________________
+            Input ---->|                     |-------
+                   --->|  判斷球X軸未來位置  |       \
+                   |   |_____________________|        |
+                   |                              ____v____________
+                   |  移動後球的新座標           |                 |
+                   |_____________________________|將板子移動至判斷 |
+                                                 |X軸位置          |---->螢幕顯示
+                                                 |_________________|
+
+4.方法:step.1:獲取由遊戲內部而得到的參數.
+scene_info = comm.get_scene_info()
+ball_position_history.append(scene_info.ball)
+#球和平板的X位置
+ball_posistion_x = scene_info.ball[0]+2.5
+platform_center_x = scene_info.platform[0]+20
+#因為球半徑為5板子長為40
+
+#球是否下墜     
+if (len(ball_position_history))==1:
+   ball_going_down=0
+elif ball_position_history[-1][1]-ball_position_history[-2][1] > 0:
+   Dx = ball_position_history[-1][0]-ball_position_history[-2][0]
+   Dy = ball_position_history[-1][1]-ball_position_history[-2][1]
+   if Dy == 0:
+     Dy = 0.000001
+   elif Dx == 0:
+     Dx = 0.000001
+     #算出移動軌跡的變化率
+     M=Dx/Dy
+     ball_going_down = 1
+   else:
+     ball_going_down = 0
+step2.If 如果遊戲失敗了得重新開始，所有數值回歸初始值
+if scene_info.status == GameStatus.GAME_OVER or \
+    scene_info.status == GameStatus.GAME_PASS:
+   comm.ml_ready()
+   continue
+
+step3.將前面獲得的參數來進行球X軸的預測
+if ball_going_down == 1 and ball_position_history[-1][1]>=0:
+   need_to_go = ball_position_history[-1][0] + (((400-ball_position_history[-1][1])/Dy)*Dx)
+   if need_to_go >= 200:
+      need_to_go = 400 - need_to_go
+   elif need_to_go <= 0:
+      need_to_go = 0 - need_to_go
+                 
+step4.將以預測結果來output板子的移動並顯示在畫面上
+if ball_going_down == 1 and ball_position_history[-1][1]>=0:
+   if platform_center_x < need_to_go:
+      comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT)
+   elif platform_center_x > need_to_go:
+       comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)        
+                             
